@@ -1,7 +1,7 @@
-Discord.Addons\bin
-Discord.Addons\obj
-Discord.Addons.SetupPattern\bin
-Discord.Addons.SetupPattern\obj
+Discord.Addons/bin
+Discord.Addons/obj
+Discord.Addons.SetupPattern/bin
+Discord.Addons.SetupPattern/obj
 Discord.sln.DotSettings.user
 .idea
 .vs
