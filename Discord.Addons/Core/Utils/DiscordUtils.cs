@@ -78,5 +78,18 @@ namespace Discord.Addons.Utils {
         }
 
         #endregion
+
+        #region Embeds
+
+        public static Embed BuildErrorEmbed(Exception exception) => 
+            BuildErrorEmbed(exception.ToString(), true);
+        
+        public static Embed BuildErrorEmbed(string error, bool internalError = false) => new EmbedBuilder()
+            .WithTitle($"❌ Execution error! {(internalError ? "(Internal)" : string.Empty)}")
+            .WithColor(Color.Red)
+            .WithDescription(error)
+            .Build();
+        
+        #endregion
     }
 }

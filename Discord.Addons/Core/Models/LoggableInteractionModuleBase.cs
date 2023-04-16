@@ -1,4 +1,5 @@
-﻿using Discord.Interactions;
+﻿using Discord.Addons.Utils;
+using Discord.Interactions;
 using JetBrains.Annotations;
 
 namespace Discord.Addons;
@@ -8,18 +9,28 @@ public abstract class LoggableInteractionModuleBase : LoggableInteractionModuleB
 
 [PublicAPI]
 public abstract class LoggableInteractionModuleBase<T> : InteractionModuleBase<T> where T : class, IInteractionContext {
-    protected virtual async Task RespondWithErrorAsync(string error, IInteractionContext? context = null, bool ephemeral = false) {
-        context ??= Context;
-        await context.Interaction.RespondAsync(embed: BuildErrorEmbed(error), ephemeral: ephemeral);
+    protected virtual async Task RespondWithErrorAsync(Exception exception, bool ephemeral = false, IInteractionContext? context = null) {
+        await RespondWithEmbedAsync(DiscordUtils.BuildErrorEmbed(exception), ephemeral, context);
+    }
+    
+    protected virtual async Task RespondWithErrorAsync(string error,
+        bool internalError = false, bool ephemeral = false, IInteractionContext? context = null) {
+        await RespondWithEmbedAsync(DiscordUtils.BuildErrorEmbed(error, internalError), ephemeral, context);
     }
 
-    protected virtual async Task ModifyWithErrorAsync(string error) {
-        await Context.Interaction.ModifyOriginalResponseAsync(x => x.Embed = BuildErrorEmbed(error));
+    protected virtual async Task ModifyWithErrorAsync(string error, bool internalError = false) {
+        await ModifyWithEmbedAsync(DiscordUtils.BuildErrorEmbed(error, internalError));
+    }
+    
+    protected virtual async Task ModifyWithErrorAsync(Exception exception) {
+        await ModifyWithEmbedAsync(DiscordUtils.BuildErrorEmbed(exception));
     }
 
-    private static Embed BuildErrorEmbed(string error) => new EmbedBuilder()
-        .WithTitle("❌ Execution error!")
-        .WithColor(Color.Red)
-        .WithDescription(error)
-        .Build();
+    private async Task RespondWithEmbedAsync(Embed embed, bool ephemeral = false, IInteractionContext? context = null) {
+        await (context ?? Context).Interaction.RespondAsync(embed: embed, ephemeral: ephemeral);
+    }
+    
+    private async Task ModifyWithEmbedAsync(Embed embed) {
+        await Context.Interaction.ModifyOriginalResponseAsync(x => x.Embed = embed);
+    }
 }
