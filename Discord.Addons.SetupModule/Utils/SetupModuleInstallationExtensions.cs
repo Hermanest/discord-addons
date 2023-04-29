@@ -2,7 +2,7 @@
 using JetBrains.Annotations;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace Discord.Addons.SetupModule; 
+namespace Discord.Addons.SetupModule.Utils; 
 
 [PublicAPI]
 public static class SetupModuleInstallationExtensions {

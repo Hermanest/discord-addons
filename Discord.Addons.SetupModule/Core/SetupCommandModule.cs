@@ -5,6 +5,7 @@ using Discord.Interactions.Builders;
 using Discord.WebSocket;
 using Microsoft.Extensions.Logging;
 using System.Reflection;
+using Discord.Addons.SetupModule.Utils;
 using JetBrains.Annotations;
 
 namespace Discord.Addons.SetupModule;
@@ -39,33 +40,42 @@ public class SetupCommandModule : LoggableInteractionModuleBase {
     protected readonly ILogger? logger;
     protected string setupCommandName = null!;
 
-    public override void Construct(ModuleBuilder builder, InteractionService commandService) {
-        builder.WithGroupName("setup").WithDescription("Settings group");
+    public sealed override void Construct(ModuleBuilder builder, InteractionService commandService) {
+        builder.WithGroupName("setup");
         builder.WithDefaultMemberPermissions(GuildPermission.ManageGuild);
-        logger?.LogDebug("Initiated auto-configs commands generation");
+        logger?.LogDebug("Constructing slash commands");
         foreach (var type in cache) {
-            var attr = type.GetCustomAttribute<SetupWithCommandAttribute>();
-            if (attr is null) return;
+            if (type.GetCustomAttribute<ComplexObjectAttribute>() is not { } attr) return;
             try {
-                if (pseudoCtorCache.ContainsKey(attr!.CommandName))
-                    throw new ArgumentException("An item with the same command name is already exists");
-                builder.AddSlashCommand(x => BuildSlashCommand(x, attr!.CommandName, type));
-                logger?.LogTrace("Generated " + type);
+                logger?.LogTrace($"Building {type}");
+                var name = attr.Name;
+                if (pseudoCtorCache.ContainsKey(name)) {
+                    throw new ArgumentException("An item with the same command name is already exists", nameof(name));
+                }
+                builder.AddSlashCommand(x => {
+                    if (!this.BuildComplexSlashCommand(name, type, x, interactionHandle
+                            .InteractionService, services, out var ctor)) {
+                        throw new ModuleConstructionException(name);
+                    }
+                    pseudoCtorCache.Add(name, ctor!);
+                    x.WithName(name);
+                    HandleSlashCommandBuilt(x, type);
+                });
             } catch (Exception ex) {
-                logger?.LogError("Failed to install auto-config:\r\n" + ex);
+                logger?.LogError(ex.ToString());
             }
         }
+        HandleModuleConstructed(builder);
         setupCommandName = builder.SlashGroupName;
-        logger?.LogDebug("Generation completed");
+        logger?.LogDebug("Construction completed");
     }
 
-    protected virtual void BuildSlashCommand(Interactions.Builders.SlashCommandBuilder builder, string name, Type type) {
-        var cctor = type.GetMethods(ReflectionUtils.DefaultFlags)
-            .FirstOrDefault(x => x.GetCustomAttribute<SetupCtorAttribute>() != null);
-        if (cctor == null) return;
-        DiscordUtils.BuildSlashCommand(builder, x => this, cctor, interactionHandle.InteractionService, services);
-        builder.WithName(name).WithDescription("Allows to modify " + type.Name + "'s settings");
-        pseudoCtorCache.Add(name, cctor);
+    protected virtual void HandleModuleConstructed(ModuleBuilder builder) {
+        builder.WithDescription("Settings group");
+    }
+
+    protected virtual void HandleSlashCommandBuilt(Interactions.Builders.SlashCommandBuilder builder, Type type) {
+        builder.WithDescription($"Allows to modify {type.Name}'s settings");
     }
 
     protected virtual async Task<bool> HandleInteractionCreated(SocketInteraction interaction) {
@@ -84,16 +94,16 @@ public class SetupCommandModule : LoggableInteractionModuleBase {
         var conf = await configService.MemoryPool
             .GetObject(accessKey, mtd.DeclaringType!);
         if (conf == null) {
-            await ModifyWithErrorAsync("Failed to read configuration from the pool");
+            await ModifyWithErrorAsync("Failed to read configuration from the pool", true);
             return true;
         }
-        
+
         var oldSnapshot = ReflectionUtils.CreateSnapshot(conf);
-        if (!TryInvokePseudoConstructor(conf, mtd, subCommand.Options)) {
-            await ModifyWithErrorAsync("Failed to invoke config constructor");
+        if (!TryInvokePseudoCtor(conf, mtd, subCommand.Options)) {
+            await ModifyWithErrorAsync("Failed to invoke complex constructor", true);
             return true;
         }
-        
+
         var embed = BuildReportEmbed(mtd.DeclaringType!.Name,
             ReflectionUtils.CreateReport(oldSnapshot,
                 ReflectionUtils.CreateSnapshot(conf)),
@@ -106,7 +116,7 @@ public class SetupCommandModule : LoggableInteractionModuleBase {
         return true;
     }
 
-    protected static bool TryInvokePseudoConstructor(object obj, MethodInfo mtd,
+    protected static bool TryInvokePseudoCtor(object obj, MethodInfo mtd,
         IReadOnlyCollection<SocketSlashCommandDataOption> options) {
         try {
             var mtdParameters = mtd.GetParameters();

@@ -31,7 +31,7 @@ public abstract class ConfigurableInteractionModuleBase<T, TConfig> : LoggableIn
         builder.AddPreconditions(new CustomPreconditionAttribute(async (x, y, z) => {
             var result = await GetPreconditionResult(x, y, z);
             if (result.IsSuccess) return result;
-            await RespondWithErrorAsync(result.ErrorReason, context: x);
+            await RespondWithErrorAsync(result.ErrorReason, interaction: x.Interaction);
             return result;
         }));
     }

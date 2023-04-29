@@ -3,7 +3,6 @@ using Discord.Addons.Data;
 using Discord.Interactions;
 using JetBrains.Annotations;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
 
 namespace Discord.Addons.Utils; 
 

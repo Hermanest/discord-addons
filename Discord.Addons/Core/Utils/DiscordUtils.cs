@@ -66,30 +66,44 @@ namespace Discord.Addons.Utils {
 
         #region Commands
 
-        private static readonly MethodInfo _buildSlashCommandMethodInfo = 
+        private static readonly MethodInfo _buildSlashCommandMethodInfo =
             DiscordInteractionsAssembly.GetType("Discord.Interactions.Builders.ModuleClassBuilder")!
-            .GetMethod("BuildSlashCommand", ReflectionUtils.StaticFlags)!;
+                .GetMethod("BuildSlashCommand", ReflectionUtils.StaticFlags)!;
 
-        public static void BuildSlashCommand(Interactions.Builders.SlashCommandBuilder builder, 
-            Func<IServiceProvider, IInteractionModuleBase> createInstance, 
+        public static void BuildSlashCommand(Interactions.Builders.SlashCommandBuilder builder,
+            Func<IServiceProvider, IInteractionModuleBase> createInstance,
             MethodInfo methodInfo, InteractionService commandService, IServiceProvider services) {
-            _buildSlashCommandMethodInfo.Invoke(null, new object[] { 
-                builder, createInstance, methodInfo, commandService, services });
+            _buildSlashCommandMethodInfo.Invoke(null, new object[] {
+                builder,
+                createInstance,
+                methodInfo,
+                commandService,
+                services
+            });
         }
 
         #endregion
 
         #region Embeds
 
-        public static Embed BuildErrorEmbed(Exception exception) => 
+        public static Embed BuildWaitEmbed(string? info = null) => BuildUniversalEmbed("⌚ Execution in process",
+            info ?? "Please wait for the bot to handle the information", Color.Blue);
+        
+        public static Embed BuildSuccessEmbed(string info) =>
+            BuildUniversalEmbed(":white_check_mark: Execution completed", info, Color.Green);
+
+        public static Embed BuildErrorEmbed(Exception exception) =>
             BuildErrorEmbed(exception.ToString(), true);
-        
-        public static Embed BuildErrorEmbed(string error, bool internalError = false) => new EmbedBuilder()
-            .WithTitle($"❌ Execution error! {(internalError ? "(Internal)" : string.Empty)}")
-            .WithColor(Color.Red)
-            .WithDescription(error)
+
+        public static Embed BuildErrorEmbed(string error, bool internalError = false) =>
+            BuildUniversalEmbed($"❌ Execution error! {(internalError ? "(Internal)" : string.Empty)}", error, Color.Red);
+
+        public static Embed BuildUniversalEmbed(string title, string info, Color color) => new EmbedBuilder()
+            .WithTitle(title)
+            .WithColor(color)
+            .WithDescription(info)
             .Build();
-        
+
         #endregion
     }
 }
